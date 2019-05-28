@@ -24,13 +24,11 @@ E = [32, 1, 2, 3, 4, 5,	4, 5, 6, 7, 8, 9,
      16, 17, 18, 19, 20, 21, 20, 21, 22, 23, 24, 25,
      24, 25, 26, 27, 28, 29, 28, 29, 30, 31, 32, 1]
 # Permutation
-P = [16, 7, 20, 21, 29, 12, 28, 17,
-     1, 15, 23, 26, 5, 18, 31, 10,
-     2, 8, 24, 14, 32, 27, 3, 9,
-     19, 13, 30, 6, 22, 11, 4, 25]
-# Number of bit-shifts
-BS = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1]
-# SBOX
+P = [16, 7, 20, 21, 29, 12, 28, 17, 1, 15, 23, 26, 5, 18, 31, 10,
+     2, 8, 24, 14, 32, 27, 3, 9, 19, 13, 30, 6, 22, 11, 4, 25]
+# Number of bit-shifts - zmodyfikowałem żeby przy ostatbiej iteracji (for) przesówał o 0 pozycji
+BS = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1, 0]
+# SBOXs
 S_BOX = [
 
     [[14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7],
@@ -82,6 +80,7 @@ S_BOX = [
      ]
 ]
 
+
 def permutation(val, matrix):
     return ''.join(val[i-1] for i in matrix)
 
@@ -101,16 +100,17 @@ def stringXOR(str1, str2):
     return strXOR
 
 # funkction E S P
-def functionF(val, keys):
+def functionESP(val, keys):
     L = val[0:32]
     R = val[32:64]
     for i in range(16):
         tmp = L
         L = R
-        R = permutation(R,E)
-        R = stringXOR(R,keys[i])
+        R = permutation(R, E)
+        R = stringXOR(R, keys[i])
         R = sBox(R)
-        R = stringXOR(R,tmp)
+        R = permutation(R, P)
+        R = stringXOR(R, tmp)
     return R+L
 
 
@@ -118,12 +118,12 @@ def sBox(val):
     S = []
     C = ""
     for i in range(8):
-        S.append(val[i*6:(i+1)*6])
+        S.append(val[i*6:i*6+6])
 
     for i in range(8):
-        row = int(S[i][0]+S[i][5],2) # 0 i 5 bit
-        column = int(S[i][1]+S[i][2]+S[i][3]+S[i][4],2) # 1,2,3,4 bit
-        C += format(S_BOX[i][row][column],'b').zfill(4)
+        row = int(S[i][0]+S[i][5], 2) # 0 i 5 bit
+        column = int(S[i][1]+S[i][2]+S[i][3]+S[i][4], 2) # 1,2,3,4 bit
+        C += format(S_BOX[i][row][column], 'b').zfill(4)
     return C
 
 
@@ -142,32 +142,39 @@ def createSubKeys(key):
     shift_keys = []
     # shift bits
     shift_keys.append(key_PC1)
-    for i in range(0,16):
+    for i in range(0,17):
         shift_keys.append(leftCircularShift(shift_keys[len(shift_keys)-1], i))
     sub_keys = []
-    shift_keys.pop(0)
     # second permutation
-    for i in range(16):
+    for i in range(1,17):
         sub_keys.append(permutation(shift_keys[i], PC2))
     return sub_keys
 
 
 
 def encrypt(key, val):
-  #  bin_key = string2bits(key)
     subKeys = createSubKeys(key)
-   # bin_val = string2bits(val)
-    per_val = permutation(val,IP)
-    val = functionF(per_val,subKeys)
+    val = permutation(val,IP)
+    val = functionESP(val,subKeys)
     val = permutation(val,IP_1)
     return val
 
 
 
+# key = input("Witam w programie do enkrypcji :)\nPodaj klucz (8 znaków w ASCII):")
+# text = input("Podaj tekst do zaszyfrowania (8 znaków w ASCII):")
+# key = string2bits(key)
+# text = string2bits(text)
+# print("zakodowana wiadomość:",bits2string(encrypt(key, text)))
 
 
-key = "0000001110000000000001110011110011110011110001110000011100110100"
-text = "1000000000000000000000000000000000000000000000000000000000000000"
+
+
+
+key = "0001001100110100010101110111100110011011101111001101111111110001"
+print("key:  ",key)
+text = "0000000100100011010001010110011110001001101010111100110111101111"
+print("text: ",text)
 encrypted = encrypt(key, text)
-print("maine:", encrypted)
-print("filps: 1100110011100011000000000011000100101001000110011110001001110110")
+print("encrypted :", encrypted)
+# badany input,key,output z http://page.math.tu-berlin.de/~kant/teaching/hess/krypto-ws2006/des.htm
