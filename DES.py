@@ -26,7 +26,7 @@ E = [32, 1, 2, 3, 4, 5,	4, 5, 6, 7, 8, 9,
 # Permutation
 P = [16, 7, 20, 21, 29, 12, 28, 17, 1, 15, 23, 26, 5, 18, 31, 10,
      2, 8, 24, 14, 32, 27, 3, 9, 19, 13, 30, 6, 22, 11, 4, 25]
-# Number of bit-shifts - zmodyfikowałem żeby przy ostatbiej iteracji (for) przesówał o 0 pozycji
+# Number of bit-shifts – I modified this table to move by 0 position at the last iteration
 BS = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1, 0]
 # SBOXs
 S_BOX = [
@@ -99,20 +99,40 @@ def stringXOR(str1, str2):
         strXOR += str(int(str1[i]) ^ int(str2[i]))
     return strXOR
 
-# funkction E S P
+# function E S P (encryption)
 def functionESP(val, keys):
     L = val[0:32]
     R = val[32:64]
     for i in range(16):
         tmp = L
         L = R
+
+        #Feistel function
         R = permutation(R, E)
         R = stringXOR(R, keys[i])
         R = sBox(R)
         R = permutation(R, P)
+
         R = stringXOR(R, tmp)
     return R+L
 
+
+# inverse function E S P (decryption)
+def inv_functionESP(val, keys):
+    R = val[0:32]
+    L = val[32:64]
+    for i in range(16):
+        tmp = R
+        R = L
+
+        #Feistel function
+        L = permutation(L, E)
+        L = stringXOR(L, keys[15-i])
+        L = sBox(L)
+        L = permutation(L, P)
+
+        L = stringXOR(L, tmp)
+    return L+R
 
 def sBox(val):
     S = []
@@ -152,29 +172,49 @@ def createSubKeys(key):
 
 
 
-def encrypt(key, val):
+def DES(key, val):
     subKeys = createSubKeys(key)
-    val = permutation(val,IP)
-    val = functionESP(val,subKeys)
-    val = permutation(val,IP_1)
+    val = permutation(val, IP)
+    val = functionESP(val, subKeys)
+    val = permutation(val, IP_1)
+    return val
+
+def DES_1(key, val):
+    subKeys = createSubKeys(key)
+    val = permutation(val, IP)
+    val = inv_functionESP(val, subKeys)
+    val = permutation(val, IP_1)
     return val
 
 
+def TDES(key1, key2, key3, val):
+    val = DES(key1, val)
+    val = DES_1(key2, val)
+    val = DES(key3, val)
+    return val
 
-# key = input("Witam w programie do enkrypcji :)\nPodaj klucz (8 znaków w ASCII):")
-# text = input("Podaj tekst do zaszyfrowania (8 znaków w ASCII):")
-# key = string2bits(key)
-# text = string2bits(text)
-# print("zakodowana wiadomość:",bits2string(encrypt(key, text)))
+def TDES_1(key1, key2, key3, val):
+    val = DES_1(key3, val)
+    val = DES(key2, val)
+    val = DES_1(key1, val)
+    return val
 
-
-
-
-
-key = "0001001100110100010101110111100110011011101111001101111111110001"
-print("key:  ",key)
-text = "0000000100100011010001010110011110001001101010111100110111101111"
-print("text: ",text)
-encrypted = encrypt(key, text)
-print("encrypted :", encrypted)
-# badany input,key,output z http://page.math.tu-berlin.de/~kant/teaching/hess/krypto-ws2006/des.htm
+# key_file = open("key.bin", "r+")
+# key = key_file.read(1024*1024)
+# key_file.close()
+key1 = '0000000100100011010001010110011110001001101010111100110111101111' #0123456789ABCDEF
+key2 = '0010001101000101011001111000100110101011110011011110111100000001' #23456789ABCDEF01
+key3 = '0100010101100111100010011010101111001101111011110000000100100011' #456789ABCDEF0123
+# text_file = open("text.bin", "r+")
+# text = text_file.read(1024*1024)
+# text_file.close()
+text = '0101010001101000011001010010000001110001011101010110011001100011' #5468652071756663
+# output_file = open("output.bin","w+")
+for i in range(1): #16*1024
+    # output_file.write()
+    enc = TDES(key1, key2, key3, text)
+    dec = TDES_1(key1, key2, key3, enc)
+    print("txt: " + hex(int(text, 2)))
+    print("enc: " + hex(int(enc, 2)))
+    print("dec: " + hex(int(dec, 2)))
+# output_file.close()
